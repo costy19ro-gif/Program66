@@ -32,15 +32,11 @@ if not lista_ids:
     st.warning("⚠️ Lista de Match ID-uri este goală sau formatul textului este incorect.")
     st.stop()
 
-# 🚫 CELE 16 LIGI INTERZISE COMPLET
+# 🚫 NOUA LISTĂ DE LIGI INTERZISE (O poți edita direct de aici oricând dorești)
 ligi_interzise = [
-    "CHINA: League Two", "RUSSIA: FNL 2 - Division B", "ETHIOPIA: Premier League",
-    "SYRIA: Premier League", "USA: USL League One", "LITHUANIA: I Lyga",
-    "PARAGUAY: Division Intermedia", "ICELAND: Division 2", "BRAZIL: Carioca 2",
-    "BRAZIL: Mineiro 2", "CANADA: Canadian Premier League", "ECUADOR: Liga Pro",
-    "SWEDEN: Division 1 - Sdra", "SWEDEN: Division 2 - Norra Gtaland",
-    "BRAZIL: Brasileiro U20", "USA: USL League Two", "WORLD: Club Friendly",
-    "SOMALIA: National league", "WORLD: Friendly International"
+    "SOMALIA: National league", 
+    "RUSSIA: FNL 2 - Division B", 
+    "WORLD: Friendly International"
 ]
 
 # 🎛️ SELECTOR INTERACTIV DE PIEȚE
@@ -110,7 +106,7 @@ for m_id in lista_ids:
         "a_played": away_played
     })
 
-# Sortează absolut toate meciurile cronologic înainte de distribuire
+# Sortează toate meciurile cronologic înainte de distribuire
 toate_meciurile_procesate = sorted(toate_meciurile_procesate, key=lambda x: x["ora"])
 
 bilete_safe = []
@@ -118,21 +114,21 @@ bilete_mega = []
 bilete_risky = []
 meciuri_folosite = set()
 
-# 🟢 1. Construim Safe Accumulator (Până la 8 meciuri unice din cele cu istoric mare)
+# 🟢 1. Safe Accumulator (Până la 8 meciuri unice)
 for m in toate_meciurile_procesate:
     if m["h_played"] >= 10 and m["a_played"] >= 10:  
         if m["meci"] not in meciuri_folosite and len(bilete_safe) < 8:
             bilete_safe.append(m)
             meciuri_folosite.add(m["meci"])
 
-# 🟡 2. Construim Mega Accumulator (Meciuri unice rămase)
+# 🟡 2. Mega Accumulator (Meciuri unice rămase)
 for m in toate_meciurile_procesate:
     if m["meci"] not in meciuri_folosite and len(bilete_mega) < 4:
         if m["h_played"] >= 7 and m["a_played"] >= 7:
             bilete_mega.append(m)
             meciuri_folosite.add(m["meci"])
 
-# 🔴 3. Construim Risky Accumulator (Restul de meciuri rămase)
+# 🔴 3. Risky Accumulator (Restul de meciuri unice rămase)
 for m in toate_meciurile_procesate:
     if m["meci"] not in meciuri_folosite and len(bilete_risky) < 4:
         bilete_risky.append(m)
@@ -153,7 +149,6 @@ with col1:
         st.markdown(f"🔹 **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
         text_copiere_safe += f"• {s['meci']} -> {s['pariu']} ({s['cota']:.2f})\n"
     
-    # Setat miza implicită la 2 RON conform cerinței tale
     miza_safe = st.number_input("Miză Safe (RON):", min_value=1, value=2, key="m_s")
     st.write(f"💰 Câștig: **{miza_safe * c_safe:.1f} RON**")
     st.code(text_copiere_safe, language="text")
