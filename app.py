@@ -6,8 +6,8 @@ st.set_page_config(page_title="Program55 - Bet Builder Pro", layout="wide")
 st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
 st.caption("Sortare Cronologică | Cotă Minimă 1.27 | Mize Custom & Copiere Rapidă")
 
-# 📂 Citire LOCALĂ (Imună la erori de rețea sau internet)
-cale_fisier_local = "match_ids.txt"
+# 📂 Îndreptăm citirea locală direct către fișierul tău .py existent pe disc
+cale_fisier_local = "match_ids.py"
 
 # 🚫 CELE 16 LIGI INTERZISE COMPLET
 ligi_interzise = [
@@ -19,7 +19,7 @@ ligi_interzise = [
     "BRAZIL: Brasileiro U20", "USA: USL League Two"
 ]
 
-@st.cache_data(ttl=60)  # Verifică fișierul local la fiecare minut în caz că se schimbă pe GitHub
+@st.cache_data(ttl=30)  
 def incarca_iduri_local():
     if not os.path.exists(cale_fisier_local):
         return []
@@ -27,7 +27,8 @@ def incarca_iduri_local():
         with open(cale_fisier_local, "r", encoding="utf-8", errors="ignore") as f:
             text_brut = f.read()
             linii_curate = []
-            caractere_inutile = ['"', "'", ",", "[", "]", "lista_match_ids", "=", ";"]
+            # Eliminăm bucățile de sintaxă Python pentru a păstra doar ID-urile curate
+            caractere_inutile = ['"', "'", ",", "[", "]", "match_ids", "=", ";"]
             
             for linie in text_brut.splitlines():
                 id_text = linie.strip()
@@ -35,18 +36,18 @@ def incarca_iduri_local():
                     id_text = id_text.replace(car, "")
                 id_text = id_text.strip()
                 
-                # Extrage doar codurile valide de exact 8 caractere
+                # Păstrăm exclusiv Match ID-urile de 8 caractere
                 if len(id_text) == 8:
                     linii_curate.append(id_text)
             return linii_curate
     except Exception as e:
-        st.error(f"Eroare la citirea fișierului local: {e}")
+        st.error(f"Eroare la procesarea fișierului local: {e}")
         return []
 
 lista_match_ids = incarca_iduri_local()
 
 if not lista_match_ids:
-    st.warning("⚠️ Fișierul 'match_ids.txt' nu a fost găsit în folder sau este gol. Asigură-te că macro-ul Excel l-a salvat corect în repozitoriu.")
+    st.warning("⚠️ Fișierul 'match_ids.py' nu a putut fi citit sau codurile nu au lungimea corectă.")
     st.stop()
 
 # 🎛️ SELECTOR INTERACTIV DE PIEȚE
@@ -119,7 +120,6 @@ for m_id in lista_match_ids:
 
     obiect_meci = {"meci": nume_meci, "detalii": detalii, "pariu": pariu_ales, "cota": round(cota_aleasa, 2), "ora": ora_meci}
 
-    # Corectat typo-ul din versiunea anterioară: acum adaugă corect în lista sigură
     if home_played >= 12 and away_played >= 12: bilete_safe.append(obiect_meci)
     if home_played >= 7 and away_played >= 7: bilete_mega.append(obiect_meci)
     if home_played >= 5 and away_played >= 5: bilete_risky.append(obiect_meci)
@@ -129,7 +129,7 @@ bilete_safe = sorted(bilete_safe, key=lambda x: x["ora"])
 bilete_mega = sorted(bilete_mega, key=lambda x: x["ora"])
 bilete_risky = sorted(bilete_risky, key=lambda x: x["ora"])
 
-# 📊 AFISARE COLOANE
+# 📊 AFISARE COLOANE SIMETRICE
 col1, col2, col3 = st.columns(3)
 
 with col1:
