@@ -1,0 +1,149 @@
+import csv
+import os
+import streamlit as st
+
+st.set_page_config(page_title="Program55 - Bet Builder", layout="wide")
+st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
+
+cale_fisier = "scores24.csv"
+
+if not os.path.exists(cale_fisier):
+    st.error(f"Nu am găsit fișierul '{cale_fisier}' în GitHub!")
+    st.stop()
+
+# 🚫 LISTA COMPLETĂ DE LIGI INTERZISE (Cele 16 salvate pentru siguranță)
+ligi_interzise = [
+    "CHINA: League Two", "RUSSIA: FNL 2 - Division B", "ETHIOPIA: Premier League",
+    "SYRIA: Premier League", "USA: USL League One", "LITHUANIA: I Lyga",
+    "PARAGUAY: Division Intermedia", "ICELAND: Division 2", "BRAZIL: Carioca 2",
+    "BRAZIL: Mineiro 2", "CANADA: Canadian Premier League", "ECUADOR: Liga Pro",
+    "SWEDEN: Division 1 - Sdra", "SWEDEN: Division 2 - Norra Gtaland",
+    "BRAZIL: Brasileiro U20", "USA: USL League Two"
+]
+
+# 🎛️ INTERFAȚA DE CONSTRUCȚIE (Stil Scores24)
+st.markdown("### 🎚️ Selectează Tipul de Acumulator Dorit:")
+tip_pariu = st.radio(
+    "Alege piața pe care vrei să se bazeze biletul:",
+    ["Toate Mixate (Combo)", "Doar Soliști (1X2)", "Doar Șansă Dublă (1X/X2)", "Doar Goluri (Sub/Peste)", "Opțiuni PsF (Pauză sau Final)"],
+    horizontal=True
+)
+
+# Liste pentru stocarea meciurilor procesate în funcție de filtrele tale de istoric
+bilete_safe = []
+bilete_mega = []
+bilete_risky = []
+
+with open(cale_fisier, "r", encoding="utf-8", errors="ignore") as f:
+    cititor_csv = csv.reader(f, delimiter=',', quotechar='"')
+    
+    for row in cititor_csv:
+        row = [c.strip() for c in row if c is not None and c.strip()]
+        if len(row) < 45:
+            continue
+            
+        try:
+            liga = row[0]
+            data_ora = row[1]
+            gazde = row[2]
+            oaspeti = row[3]
+            
+            # Filtru ligi interzise
+            if any(liga_blocata in liga for liga_blocata in ligi_interzise):
+                continue
+                
+            nume_meci = f"{gazde} vs {oaspeti}"
+            detalii = f"{data_ora} | {liga}"
+            
+            # Istoric meciuri (AX/AY)
+            numere_gasite = [int(x) for x in row if x.isdigit()]
+            home_played = numere_gasite[-2] if len(numere_gasite) >= 2 else 0
+            away_played = numere_gasite[-1] if len(numere_gasite) >= 2 else 0
+            
+            # Extragere cote float
+            toate_numerele = [float(x) for x in row if x.replace('.', '', 1).isdigit() and not float(x).is_integer()]
+            if len(toate_numerele) < 5: continue
+            
+            cota_1 = toate_numerele[0]
+            cota_x = toate_numerele[1]
+            cota_2 = toate_numerele[2]
+            
+            este_meci_inchis = "0-0" in row or "79%" in row or cota_x < 3.20
+            
+            # --- CONSTRUCȚIA OPȚIUNILOR DE PARIERE ---
+            pariu_ales = ""
+            cota_aleasa = 1.50
+            
+            if cota_1 < cota_2:
+                favorit, cota_fav, sd, cota_sd_val, psf = "1", cota_1, "1X", max(1.16, round(cota_1 * 0.75, 2)), "PsF 1"
+            else:
+                favorit, cota_fav, sd, cota_sd_val, psf = "2", cota_2, "X2", max(1.18, round(cota_2 * 0.75, 2)), "PsF 2"
+                
+            # Schimbăm dinamica pariului selectat în funcție de butonul apăsat de utilizator
+            if tip_pariu == "Doar Soliști (1X2)":
+                pariu_ales = f"Victorie {gazde if favorit=='1' else oaspeti} (Solist {favorit})"
+                cota_aleasa = cota_fav
+            elif tip_pariu == "Doar Șansă Dublă (1X/X2)":
+                pariu_ales = f"Șansă Dublă {sd}"
+                cota_aleasa = cota_sd_val
+            elif tip_pariu == "Doar Goluri (Sub/Peste)":
+                pariu_ales = "Sub 3.5 Goluri" if este_meci_inchis else "Peste 1.5 Goluri"
+                cota_aleasa = 1.22 if este_meci_inchis else 1.30
+            elif tip_pariu == "Opțiuni PsF (Pauză sau Final)":
+                pariu_ales = "PsF X (Egal la Pauză/Final)" if este_meci_inchis else f"{psf} (Pauză sau Final)"
+                cota_aleasa = 1.65 if este_meci_inchis else max(1.35, round(cota_fav * 0.82, 2))
+            else:
+                # Modul complet combinat (fostul Combo Inteligent)
+                pariu_ales = "Sub 3.5 Goluri" if este_meci_inchis else f"{sd} & Peste 0.5 goluri R1"
+                cota_aleasa = 1.22 if este_meci_inchis else round(cota_sd_val * 1.15, 2)
+
+            obiect_meci = {"meci": nume_meci, "detalii": detalii, "pariu": pariu_ales, "cota": round(cota_aleasa, 2)}
+
+            # --- SORTARE PE BILETE ÎN FUNCȚIE DE FILTRELE DE ISTORIC (Meciuri AX/AY) ---
+            if home_played >= 12 and away_played >= 12:
+                bilete_safe.append(obiect_meci)
+            if home_played >= 7 and away_played >= 7:
+                bilete_mega.append(obiect_meci)
+            if home_played >= 5 and away_played >= 5:
+                bilete_risky.append(obiect_meci)
+
+        except Exception:
+            continue
+
+# 📊 REZULTAT: AFISARE ÎN FORMAT DE COLOANE TIP SCORES24 ACCAS
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.markdown("### 🟢 Safe Accumulator")
+    st.caption("Pariuri bazate pe echipe cu peste 12 meciuri de istoric dur.")
+    st.markdown("---")
+    c_tot_safe = 1.0
+    for s in bilete_safe[:4]: c_tot_safe *= s["cota"]
+    st.markdown(f"**Multiplicator Total:** <span style='color:#00cc66; font-size:22px; font-weight:bold;'>{c_tot_safe:.2f}</span>", unsafe_allow_html=True)
+    
+    for s in bilete_safe[:4]:
+        st.markdown(f"**{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']}</span>", unsafe_allow_html=True)
+
+with col2:
+    st.markdown("### 🟡 Mega Accumulator")
+    st.caption("Pariuri echilibrate selectate din meciuri cu peste 7 etape.")
+    st.markdown("---")
+    c_tot_mega = 1.0
+    for s in bilete_mega[:4]: c_tot_mega *= s["cota"]
+    st.markdown(f"**Multiplicator Total:** <span style='color:#ffcc00; font-size:22px; font-weight:bold;'>{c_tot_mega:.2f}</span>", unsafe_allow_html=True)
+    
+    for s in bilete_mega[:4]:
+        st.markdown(f"**{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']}</span>", unsafe_allow_html=True)
+
+with col3:
+    st.markdown("### 🔴 Risky / High Odds Acca")
+    st.caption("Cote mari extrase din meciuri cu minimum 5 jocuri la activ.")
+    st.markdown("---")
+    c_tot_risk = 1.0
+    for s in bilete_risky[:3]: c_tot_risk *= s["cota"]
+    st.markdown(f"**Multiplicator Total:** <span style='color:#ff3333; font-size:22px; font-weight:bold;'>{c_tot_risk:.2f}</span>", unsafe_allow_html=True)
+    
+    for s in bilete_risky[:3]:
+        # Pentru biletul risky mărim artificial cota sau lăsăm opțiunea de bază neatinsă
+        cota_afisata = round(s['cota'] * 1.4, 2) if tip_pariu == "Toate Mixate (Combo)" else s['cota']
+        st.markdown(f"**{cota_afisata:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']}</span>", unsafe_allow_html=True)
