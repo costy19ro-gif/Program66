@@ -162,3 +162,21 @@ with col3:
     for s in m_risk:
         st.markdown(f"❌ **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
     if m_risk: st.warning("💰 Miza recomandată: 5 RON")
+
+# 📥 Funcție adaptată pentru formatul nou de listă .PY din GitHub
+@st.cache_data(ttl=600)
+def descarca_lista_iduri():
+    try:
+        with urllib.request.urlopen(URL_MATCH_IDS) as raspuns:
+            text_brut = raspuns.read().decode('utf-8')
+            linii = []
+            for linie in text_brut.splitlines():
+                # Eliminăm tot ce ține de sintaxa Python (ghilimele, paranteze, virgule, spații)
+                id_curat = linie.strip().replace('"', '').replace("'", "").replace(",", "").replace("[", "").replace("]", "").replace("lista_match_ids = ", "")
+                # Dacă linia conținea doar paranteza de închidere sau era un rând gol, o ignorăm
+                if id_curat and id_curat != ";" and len(id_curat) > 4:
+                    linii.append(id_curat)
+            return linii
+    except Exception as e:
+        st.error(f"Eroare la conectarea cu GitHub pentru extragerea ID-urilor: {e}")
+        return []
