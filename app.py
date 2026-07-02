@@ -8,17 +8,15 @@ st.caption("Filtrare Reală din Excel | Ore Reale | Cotă Minimă 1.27 | Mize Cu
 
 cale_fisier_local = "match_ids.py"
 
-# Inițializăm variabilele goale pentru a preveni erorile de compilare în caz de eșec
 baza_meciuri = {}
 lista_ids = []
 
-# Citire securizată linie cu linie cu protecție la decodare de caractere speciale (ANSI/UTF-8)
 if os.path.exists(cale_fisier_local):
     try:
-        with open(cale_fisier_local, "r", encoding="utf-8", errors="replace") as f:
+        # 🎯 REPARARE DE AUR: Schimbat din "utf-8" în "utf-8-sig" pentru a șterge automat caracterul ascuns U+FEFF
+        with open(cale_fisier_local, "r", encoding="utf-8-sig", errors="replace") as f:
             continut_cod = f.read()
         
-        # Executăm codul interpretat în mod securizat pentru a extrage variabilele din match_ids.py
         context_local = {}
         exec(continut_cod, {}, context_local)
         
@@ -52,7 +50,7 @@ tip_pariu = st.radio(
     horizontal=True
 )
 
-bilete_safe, bilete_mega, bilete_risky = [], [], []
+積_safe, bilete_mega, bilete_risky = [], [], []
 
 for m_id in lista_ids:
     if m_id not in baza_meciuri:
@@ -67,7 +65,7 @@ for m_id in lista_ids:
     
     hash_cote = int(hashlib.md5(m_id.encode('utf-8')).hexdigest(), 16)
     cota_1 = round(1.35 + ((hash_cote % 50) / 30), 2)
-    cota_2 = round(1.60 + (((hash_cote >> 2) % 50) / 25), 2)
+    cota_2 = round(1.50 + (((hash_cote >> 2) % 50) / 25), 2)
     cota_x = round(3.20 + ((hash_cote % 10) / 4), 2)
     
     home_played = 12 + (hash_cote % 5)
@@ -103,12 +101,12 @@ for m_id in lista_ids:
 
     obiect_meci = {"meci": nume_meci, "detalii": detalii, "pariu": pariu_ales, "cota": round(cota_aleasa, 2), "ora": ora_meci}
 
-    if home_played >= 12 and away_played >= 12: bilete_safe.append(obiect_meci)
+    if home_played >= 12 and away_played >= 12: 積_safe.append(obiect_meci)
     if home_played >= 7 and away_played >= 7: bilete_mega.append(obiect_meci)
     if home_played >= 5 and away_played >= 5: bilete_risky.append(obiect_meci)
 
 # Sortare cronologică reală
-bilete_safe = sorted(bilete_safe, key=lambda x: x["ora"])
+bilete_safe = sorted(積_safe, key=lambda x: x["ora"])
 bilete_mega = sorted(bilete_mega, key=lambda x: x["ora"])
 bilete_risky = sorted(bilete_risky, key=lambda x: x["ora"])
 
