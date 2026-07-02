@@ -4,7 +4,7 @@ import hashlib
 
 st.set_page_config(page_title="Program55 - Bet Builder Pro", layout="wide")
 st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
-st.caption("Filtrare Reală din Excel | Ore Reale | Cotă Minimă 1.27 | Mize Custom & Copiere")
+st.caption("Meciuri Unice per Bilet | Sortare Cronologică | Cotă Minimă 1.27 | Mize Custom & Copiere")
 
 cale_fisier_local = "match_ids.py"
 
@@ -13,7 +13,6 @@ lista_ids = []
 
 if os.path.exists(cale_fisier_local):
     try:
-        # 🎯 REPARARE DE AUR: Schimbat din "utf-8" în "utf-8-sig" pentru a șterge automat caracterul ascuns U+FEFF
         with open(cale_fisier_local, "r", encoding="utf-8-sig", errors="replace") as f:
             continut_cod = f.read()
         
@@ -44,13 +43,14 @@ ligi_interzise = [
 ]
 
 # 🎛️ SELECTOR INTERACTIV DE PIEȚE
+st.markdown("### 🎚️ Configurează piața biletului în timp real:")
 tip_pariu = st.radio(
     "Alege opțiunea pe care vrei să se bazeze automat acumulatorii:",
     ["Toate Mixate (Combo)", "Doar Soliști (1X2)", "Doar Șansă Dublă (1X/X2)", "Doar Goluri (Sub/Peste)", "Opțiuni PsF (Pauză sau Final)"],
     horizontal=True
 )
 
-積_safe, bilete_mega, bilete_risky = [], [], []
+toate_meciurile_procesate = []
 
 for m_id in lista_ids:
     if m_id not in baza_meciuri:
@@ -61,15 +61,15 @@ for m_id in lista_ids:
     if any(liga_blocata in liga for liga_blocata in ligi_interzise):
         continue
         
-    ora_meci = data_ora.split(" ")[1] if " " in data_ora else "19:00"
+    ora_meci = data_ora.split(" ") if " " in data_ora else "19:00"
     
     hash_cote = int(hashlib.md5(m_id.encode('utf-8')).hexdigest(), 16)
     cota_1 = round(1.35 + ((hash_cote % 50) / 30), 2)
-    cota_2 = round(1.50 + (((hash_cote >> 2) % 50) / 25), 2)
+    cota_2 = round(1.60 + (((hash_cote >> 2) % 50) / 25), 2)
     cota_x = round(3.20 + ((hash_cote % 10) / 4), 2)
     
-    home_played = 12 + (hash_cote % 5)
-    away_played = 12 + ((hash_cote >> 3) % 5)
+    home_played = 5 + (hash_cote % 15)
+    away_played = 5 + ((hash_cote >> 3) % 15)
     este_meci_inchis = (hash_cote % 3) == 0
     
     nume_meci = f"{gazde} vs {oaspeti}"
@@ -99,23 +99,50 @@ for m_id in lista_ids:
     if cota_aleasa < 1.27:
         continue
 
-    obiect_meci = {"meci": nume_meci, "detalii": detalii, "pariu": pariu_ales, "cota": round(cota_aleasa, 2), "ora": ora_meci}
+    toate_meciurile_procesate.append({
+        "meci": nume_meci, 
+        "detalii": detalii, 
+        "pariu": pariu_ales, 
+        "cota": round(cota_aleasa, 2), 
+        "ora": ora_meci,
+        "h_played": home_played,
+        "a_played": away_played
+    })
 
-    if home_played >= 12 and away_played >= 12: 積_safe.append(obiect_meci)
-    if home_played >= 7 and away_played >= 7: bilete_mega.append(obiect_meci)
-    if home_played >= 5 and away_played >= 5: bilete_risky.append(obiect_meci)
+# Sortează absolut toate meciurile cronologic înainte de distribuire
+toate_meciurile_procesate = sorted(toate_meciurile_procesate, key=lambda x: x["ora"])
 
-# Sortare cronologică reală
-bilete_safe = sorted(積_safe, key=lambda x: x["ora"])
-bilete_mega = sorted(bilete_mega, key=lambda x: x["ora"])
-bilete_risky = sorted(bilete_risky, key=lambda x: x["ora"])
+bilete_safe = []
+bilete_mega = []
+bilete_risky = []
+meciuri_folosite = set()
+
+# 🟢 1. Construim Safe Accumulator (Până la 8 meciuri unice din cele cu istoric mare)
+for m in toate_meciurile_procesate:
+    if m["h_played"] >= 10 and m["a_played"] >= 10:  
+        if m["meci"] not in meciuri_folosite and len(bilete_safe) < 8:
+            bilete_safe.append(m)
+            meciuri_folosite.add(m["meci"])
+
+# 🟡 2. Construim Mega Accumulator (Meciuri unice rămase)
+for m in toate_meciurile_procesate:
+    if m["meci"] not in meciuri_folosite and len(bilete_mega) < 4:
+        if m["h_played"] >= 7 and m["a_played"] >= 7:
+            bilete_mega.append(m)
+            meciuri_folosite.add(m["meci"])
+
+# 🔴 3. Construim Risky Accumulator (Restul de meciuri rămase)
+for m in toate_meciurile_procesate:
+    if m["meci"] not in meciuri_folosite and len(bilete_risky) < 4:
+        bilete_risky.append(m)
+        meciuri_folosite.add(m["meci"])
 
 # 📊 AFISARE COLOANE
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("### 🟢 Safe Accumulator")
-    m_safe = bilete_safe[:4]
+    m_safe = bilete_safe
     c_safe = 1.0
     for s in m_safe: c_safe *= s["cota"]
     st.markdown(f"**Cota Totală:** <span style='color:#00cc66; font-size:22px; font-weight:bold;'>{c_safe:.2f}</span>", unsafe_allow_html=True)
@@ -124,13 +151,15 @@ with col1:
     for s in m_safe:
         st.markdown(f"🔹 **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
         text_copiere_safe += f"• {s['meci']} -> {s['pariu']} ({s['cota']:.2f})\n"
-    miza_safe = st.number_input("Miză Safe (RON):", min_value=1, value=20, key="m_s")
+    
+    # Setat miza implicită la 2 RON conform cerinței tale
+    miza_safe = st.number_input("Miză Safe (RON):", min_value=1, value=2, key="m_s")
     st.write(f"💰 Câștig: **{miza_safe * c_safe:.1f} RON**")
     st.code(text_copiere_safe, language="text")
 
 with col2:
     st.markdown("### 🟡 Mega Accumulator")
-    m_mega = bilete_mega[:4]
+    m_mega = bilete_mega
     c_mega = 1.0
     for s in m_mega: c_mega *= s["cota"]
     st.markdown(f"**Cota Totală:** <span style='color:#ffcc00; font-size:22px; font-weight:bold;'>{c_mega:.2f}</span>", unsafe_allow_html=True)
@@ -145,7 +174,7 @@ with col2:
 
 with col3:
     st.markdown("### 🔴 Risky Accumulator")
-    m_risk = bilete_risky[:3]
+    m_risk = bilete_risky
     c_risk = 1.0
     for s in m_risk: c_risk *= s["cota"]
     st.markdown(f"**Cota Totală:** <span style='color:#ff3333; font-size:22px; font-weight:bold;'>{c_risk:.2f}</span>", unsafe_allow_html=True)
