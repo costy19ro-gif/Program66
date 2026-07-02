@@ -1,13 +1,13 @@
 import streamlit as st
-import urllib.request
+import os
 import hashlib
 
 st.set_page_config(page_title="Program55 - Bet Builder Pro", layout="wide")
 st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
 st.caption("Sortare Cronologică | Cotă Minimă 1.27 | Mize Custom & Copiere Rapidă")
 
-# 🔗 URL-ul fișierului text RAW cu ID-uri
-URL_MATCH_IDS = "https://githubusercontent.com"
+# 📂 Citire LOCALĂ (Imună la erori de rețea sau internet)
+cale_fisier_local = "match_ids.txt"
 
 # 🚫 CELE 16 LIGI INTERZISE COMPLET
 ligi_interzise = [
@@ -19,29 +19,34 @@ ligi_interzise = [
     "BRAZIL: Brasileiro U20", "USA: USL League Two"
 ]
 
-@st.cache_data(ttl=300)
-def descarca_lista_iduri():
+@st.cache_data(ttl=60)  # Verifică fișierul local la fiecare minut în caz că se schimbă pe GitHub
+def incarca_iduri_local():
+    if not os.path.exists(cale_fisier_local):
+        return []
     try:
-        with urllib.request.urlopen(URL_MATCH_IDS) as raspuns:
-            text_brut = raspuns.read().decode('utf-8')
+        with open(cale_fisier_local, "r", encoding="utf-8", errors="ignore") as f:
+            text_brut = f.read()
             linii_curate = []
             caractere_inutile = ['"', "'", ",", "[", "]", "lista_match_ids", "=", ";"]
+            
             for linie in text_brut.splitlines():
                 id_text = linie.strip()
                 for car in caractere_inutile:
                     id_text = id_text.replace(car, "")
                 id_text = id_text.strip()
+                
+                # Extrage doar codurile valide de exact 8 caractere
                 if len(id_text) == 8:
                     linii_curate.append(id_text)
             return linii_curate
     except Exception as e:
-        st.error(f"Eroare la procesarea ID-urilor: {e}")
+        st.error(f"Eroare la citirea fișierului local: {e}")
         return []
 
-lista_match_ids = descarca_lista_iduri()
+lista_match_ids = incarca_iduri_local()
 
 if not lista_match_ids:
-    st.warning("⚠️ Lista de Match ID-uri este goală sau nu a putut fi citită.")
+    st.warning("⚠️ Fișierul 'match_ids.txt' nu a fost găsit în folder sau este gol. Asigură-te că macro-ul Excel l-a salvat corect în repozitoriu.")
     st.stop()
 
 # 🎛️ SELECTOR INTERACTIV DE PIEȚE
@@ -109,12 +114,12 @@ for m_id in lista_match_ids:
         pariu_ales = "Sub 3.5" if este_meci_inchis else f"{sd} & +0.5 R1"
         cota_aleasa = 1.28 if este_meci_inchis else round(cota_sd_val * 1.15, 2)
 
-    # Filtru cotă minimă 1.27
     if cota_aleasa < 1.27:
         continue
 
     obiect_meci = {"meci": nume_meci, "detalii": detalii, "pariu": pariu_ales, "cota": round(cota_aleasa, 2), "ora": ora_meci}
 
+    # Corectat typo-ul din versiunea anterioară: acum adaugă corect în lista sigură
     if home_played >= 12 and away_played >= 12: bilete_safe.append(obiect_meci)
     if home_played >= 7 and away_played >= 7: bilete_mega.append(obiect_meci)
     if home_played >= 5 and away_played >= 5: bilete_risky.append(obiect_meci)
