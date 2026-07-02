@@ -6,7 +6,7 @@ st.set_page_config(page_title="Program55 - Bet Builder Pro", layout="wide")
 st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
 st.caption("Sortare Cronologică | Cotă Minimă 1.27 | Mize Custom & Copiere Rapidă")
 
-# 📂 Îndreptăm citirea locală direct către fișierul tău .py existent pe disc
+# 📂 Citire locală direct către fișierul tău .py existent pe disc
 cale_fisier_local = "match_ids.py"
 
 # 🚫 CELE 16 LIGI INTERZISE COMPLET
@@ -27,7 +27,6 @@ def incarca_iduri_local():
         with open(cale_fisier_local, "r", encoding="utf-8", errors="ignore") as f:
             text_brut = f.read()
             linii_curate = []
-            # Eliminăm bucățile de sintaxă Python pentru a păstra doar ID-urile curate
             caractere_inutile = ['"', "'", ",", "[", "]", "match_ids", "=", ";"]
             
             for linie in text_brut.splitlines():
@@ -36,7 +35,6 @@ def incarca_iduri_local():
                     id_text = id_text.replace(car, "")
                 id_text = id_text.strip()
                 
-                # Păstrăm exclusiv Match ID-urile de 8 caractere
                 if len(id_text) == 8:
                     linii_curate.append(id_text)
             return linii_curate
@@ -146,7 +144,9 @@ with col1:
         
     miza_safe = st.number_input("Miză Safe (RON):", min_value=1, value=20, key="m_s")
     st.write(f"💰 Câștig: **{miza_safe * c_safe:.1f} RON**")
-    st.copy_button("📋 Copiază Bilet Safe", text_copiere_safe)
+    
+    st.caption("📋 Copiază textul de mai jos:")
+    st.code(text_copiere_safe, language="text")
 
 with col2:
     st.markdown("### 🟡 Mega Accumulator")
@@ -162,7 +162,9 @@ with col2:
         
     miza_mega = st.number_input("Miză Mega (RON):", min_value=1, value=10, key="m_m")
     st.write(f"💰 Câștig: **{miza_mega * c_mega:.1f} RON**")
-    st.copy_button("📋 Copiază Bilet Mega", text_copiere_mega)
+    
+    st.caption("📋 Copiază textul de mai jos:")
+    st.code(text_copiere_mega, language="text")
 
 with col3:
     st.markdown("### 🔴 Risky Accumulator")
@@ -178,4 +180,6 @@ with col3:
         
     miza_risk = st.number_input("Miză Risky (RON):", min_value=1, value=5, key="m_r")
     st.write(f"💰 Câștig: **{miza_risk * c_risk:.1f} RON**")
-    st.copy_button("📋 Copiază Bilet Risky", text_copiere_risk)
+    
+    st.caption("📋 Copiază textul de mai jos:")
+    st.code(text_copiere_risk, language="text")
