@@ -163,20 +163,28 @@ with col3:
         st.markdown(f"❌ **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
     if m_risk: st.warning("💰 Miza recomandată: 5 RON")
 
-# 📥 Funcție adaptată pentru formatul nou de listă .PY din GitHub
-@st.cache_data(ttl=600)
+# 📥 Funcție avansată pentru curățarea și extragerea ID-urilor de 8 caractere
+@st.cache_data(ttl=300)
 def descarca_lista_iduri():
     try:
         with urllib.request.urlopen(URL_MATCH_IDS) as raspuns:
             text_brut = raspuns.read().decode('utf-8')
-            linii = []
+            linii_curate = []
+            
+            # Eliminăm caracterele ornamentale de sintaxă .PY
+            caractere_inutile = ['"', "'", ",", "[", "]", "lista_match_ids", "=", ";"]
+            
             for linie in text_brut.splitlines():
-                # Eliminăm tot ce ține de sintaxa Python (ghilimele, paranteze, virgule, spații)
-                id_curat = linie.strip().replace('"', '').replace("'", "").replace(",", "").replace("[", "").replace("]", "").replace("lista_match_ids = ", "")
-                # Dacă linia conținea doar paranteza de închidere sau era un rând gol, o ignorăm
-                if id_curat and id_curat != ";" and len(id_curat) > 4:
-                    linii.append(id_curat)
-            return linii
+                id_text = linie.strip()
+                for car in caractere_inutile:
+                    id_text = id_text.replace(car, "")
+                id_text = id_text.strip()
+                
+                # Un Match ID valid are o lungime fixă de exact 8 caractere
+                if len(id_text) == 8:
+                    linii_curate.append(id_text)
+            return linii_curate
     except Exception as e:
-        st.error(f"Eroare la conectarea cu GitHub pentru extragerea ID-urilor: {e}")
+        st.error(f"Eroare la procesarea listei de ID-uri din GitHub: {e}")
         return []
+
