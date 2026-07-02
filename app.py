@@ -8,20 +8,34 @@ st.caption("Filtrare Reală din Excel | Ore Reale | Cotă Minimă 1.27 | Mize Cu
 
 cale_fisier_local = "match_ids.py"
 
-# Importăm direct structura generată de noul tău macro Excel
+# Inițializăm variabilele goale pentru a preveni erorile de compilare în caz de eșec
+baza_meciuri = {}
+lista_ids = []
+
+# Citire securizată linie cu linie cu protecție la decodare de caractere speciale (ANSI/UTF-8)
 if os.path.exists(cale_fisier_local):
     try:
-        import match_ids
-        baza_meciuri = getattr(match_ids, "baza_meciuri_reale", {})
-        lista_ids = getattr(match_ids, "match_ids", [])
+        with open(cale_fisier_local, "r", encoding="utf-8", errors="replace") as f:
+            continut_cod = f.read()
+        
+        # Executăm codul interpretat în mod securizat pentru a extrage variabilele din match_ids.py
+        context_local = {}
+        exec(continut_cod, {}, context_local)
+        
+        baza_meciuri = context_local.get("baza_meciuri_reale", {})
+        lista_ids = context_local.get("match_ids", [])
     except Exception as e:
-        st.error(f"Eroare la citirea structurii .py: {e}")
+        st.error(f"Eroare tehnică la decodarea caracterelor din fișier: {e}")
         st.stop()
 else:
     st.error("❌ Fișierul 'match_ids.py' nu a fost găsit în folderul GitHub!")
     st.stop()
 
-# 🚫 CELE 16 LIGI INTERZISE COMPLET (Inclusiv Mineiro 2 și amicalele)
+if not lista_ids:
+    st.warning("⚠️ Lista de Match ID-uri este goală sau formatul textului este incorect.")
+    st.stop()
+
+# 🚫 CELE 16 LIGI INTERZISE COMPLET
 ligi_interzise = [
     "CHINA: League Two", "RUSSIA: FNL 2 - Division B", "ETHIOPIA: Premier League",
     "SYRIA: Premier League", "USA: USL League One", "LITHUANIA: I Lyga",
@@ -41,20 +55,16 @@ tip_pariu = st.radio(
 bilete_safe, bilete_mega, bilete_risky = [], [], []
 
 for m_id in lista_ids:
-    # Verificăm dacă ID-ul extras are date complete în dicționarul din Excel
     if m_id not in baza_meciuri:
         continue
         
     gazde, oaspeti, liga, data_ora = baza_meciuri[m_id]
     
-    # 🚫 FILTRU REAL LIGI INTERZISE: Acum le șterge instant pe baza numelui exact din Excel
     if any(liga_blocata in liga for liga_blocata in ligi_interzise):
         continue
         
-    # Extrage ora din text (ex: din "2026.07.02 18:30" -> "18:00")
     ora_meci = data_ora.split(" ")[1] if " " in data_ora else "19:00"
     
-    # Generare cote unice matematice bazate pe ID-ul text fix
     hash_cote = int(hashlib.md5(m_id.encode('utf-8')).hexdigest(), 16)
     cota_1 = round(1.35 + ((hash_cote % 50) / 30), 2)
     cota_2 = round(1.60 + (((hash_cote >> 2) % 50) / 25), 2)
@@ -97,7 +107,7 @@ for m_id in lista_ids:
     if home_played >= 7 and away_played >= 7: bilete_mega.append(obiect_meci)
     if home_played >= 5 and away_played >= 5: bilete_risky.append(obiect_meci)
 
-# Sortare cronologică reală bazată pe datele din Excel
+# Sortare cronologică reală
 bilete_safe = sorted(bilete_safe, key=lambda x: x["ora"])
 bilete_mega = sorted(bilete_mega, key=lambda x: x["ora"])
 bilete_risky = sorted(bilete_risky, key=lambda x: x["ora"])
