@@ -39,7 +39,8 @@ ligi_interzise = [
     "PARAGUAY: Division Intermedia", "ICELAND: Division 2", "BRAZIL: Carioca 2",
     "BRAZIL: Mineiro 2", "CANADA: Canadian Premier League", "ECUADOR: Liga Pro",
     "SWEDEN: Division 1 - Sdra", "SWEDEN: Division 2 - Norra Gtaland",
-    "BRAZIL: Brasileiro U20", "USA: USL League Two", "WORLD: Club Friendly"
+    "BRAZIL: Brasileiro U20", "USA: USL League Two", "WORLD: Club Friendly",
+    "SOMALIA: National league"
 ]
 
 # 🎛️ SELECTOR INTERACTIV DE PIEȚE
