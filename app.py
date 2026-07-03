@@ -1,10 +1,11 @@
 import streamlit as st
 import os
 import hashlib
+import random
 
-st.set_page_config(page_title="Program55 - Bet Builder Pro", layout="wide")
-st.title("🚀 Program55 — Accumulator & Bet Builder (Stil Scores24)")
-st.caption("Meciuri Unice per Bilet | Sortare Cronologică | Cotă Minimă 1.27 | Mize Custom & Copiere")
+st.set_page_config(page_title="Program66 - Bet Builder Pro", layout="wide")
+st.title("🚀 Program66 — Accumulator & Bet Builder (Stil Scores24)")
+st.caption("Meciuri Aleatorii per Campionat | Meciuri Unice per Bilet | Cotă Minimă 1.27 | Mize Custom & Copiere")
 
 cale_fisier_local = "match_ids.py"
 
@@ -32,30 +33,50 @@ if not lista_ids:
     st.warning("⚠️ Lista de Match ID-uri este goală sau formatul textului este incorect.")
     st.stop()
 
-# 🚫 NOUA LISTĂ DE LIGI INTERZISE (O poți edita direct de aici oricând dorești)
+# 🚫 LISTĂ DE LIGI INTERZISE
 ligi_interzise = [
     "SOMALIA: National league", 
     "RUSSIA: FNL 2 - Division B", 
     "WORLD: Friendly International"
 ]
 
-# 🎛️ SELECTOR INTERACTIV DE PIEȚE
+# 🎛️ SELECTOR INTERACTIV DE PIEȚE (Actualizat cu piețele noi de goluri)
 st.markdown("### 🎚️ Configurează piața biletului în timp real:")
 tip_pariu = st.radio(
     "Alege opțiunea pe care vrei să se bazeze automat acumulatorii:",
-    ["Toate Mixate (Combo)", "Doar Soliști (1X2)", "Doar Șansă Dublă (1X/X2)", "Doar Goluri (Sub/Peste)", "Opțiuni PsF (Pauză sau Final)"],
+    [
+        "Toate Mixate (Combo)", 
+        "Doar Soliști (1X2)", 
+        "Doar Șansă Dublă (1X/X2)", 
+        "Doar Goluri (Sub/Peste)", 
+        "Opțiuni PsF (Pauză sau Final)",
+        "Gazdele Marchează",
+        "Oaspeții Marchează",
+        "Ambele Marchează (GG)"
+    ],
     horizontal=True
 )
 
-toate_meciurile_procesate = []
+# 🎲 Amestecare aleatorie a listei de ID-uri (Folosim seed pentru a nu se schimba la fiecare click pe mize)
+random.seed(42)
+lista_ids_aleatorii = list(lista_ids)
+random.shuffle(lista_ids_aleatorii)
 
-for m_id in lista_ids:
+toate_meciurile_procesate = []
+campionate_folosite = set()  # Structură pentru a asigura un singur meci per campionat/ligă
+
+for m_id in lista_ids_aleatorii:
     if m_id not in baza_meciuri:
         continue
         
     gazde, oaspeti, liga, data_ora = baza_meciuri[m_id]
     
+    # 🛑 SARI dacă liga este în lista celor interzise
     if any(liga_blocata in liga for liga_blocata in ligi_interzise):
+        continue
+        
+    # 🛑 SARI dacă am luat deja un meci din acest campionat
+    if liga in campionate_folosite:
         continue
         
     ora_meci = data_ora.split(" ") if " " in data_ora else "19:00"
@@ -77,6 +98,7 @@ for m_id in lista_ids:
     else:
         favorit, cota_fav, sd, cota_sd_val, psf = "2", cota_2, "X2", max(1.18, round(cota_2 * 0.76, 2)), "PsF 2"
         
+    # 📊 Alocarea tipului de pariu și a cotelor
     if tip_pariu == "Doar Soliști (1X2)":
         pariu_ales = f"Solist {favorit}"
         cota_aleasa = cota_fav
@@ -89,13 +111,27 @@ for m_id in lista_ids:
     elif tip_pariu == "Opțiuni PsF (Pauză sau Final)":
         pariu_ales = "PsF X" if este_meci_inchis else psf
         cota_aleasa = 1.65 if este_meci_inchis else max(1.35, round(cota_fav * 0.82, 2))
+    elif tip_pariu == "Gazdele Marchează":
+        pariu_ales = "Gazdele Marchează (O1+)"
+        cota_aleasa = round(1.25 + ((hash_cote % 20) / 100), 2)
+    elif tip_pariu == "Oaspeții Marchează":
+        pariu_ales = "Oaspeții Marchează (O2+)"
+        cota_aleasa = round(1.30 + (((hash_cote >> 1) % 20) / 100), 2)
+    elif tip_pariu == "Ambele Marchează (GG)":
+        pariu_ales = "Ambele Marchează (GG)"
+        cota_aleasa = round(1.65 + ((hash_cote % 35) / 100), 2)
     else:
-        pariu_ales = "Sub 3.5" if este_meci_inchis else f"{sd} & +0.5 R1"
-        cota_aleasa = 1.28 if este_meci_inchis else round(cota_sd_val * 1.15, 2)
+        # Combo / Mixat default
+        pariu_ales = "Ambele Marchează (GG)" if (hash_cote % 4 == 0) else ("Sub 3.5" if este_meci_inchis else f"{sd} & +0.5 R1")
+        if pariu_ales == "Ambele Marchează (GG)":
+            cota_aleasa = round(1.70 + ((hash_cote % 25) / 100), 2)
+        else:
+            cota_aleasa = 1.28 if este_meci_inchis else round(cota_sd_val * 1.15, 2)
 
     if cota_aleasa < 1.27:
         continue
 
+    # Adăugăm în listă și blocăm campionatul curent
     toate_meciurile_procesate.append({
         "meci": nume_meci, 
         "detalii": detalii, 
@@ -105,8 +141,9 @@ for m_id in lista_ids:
         "h_played": home_played,
         "a_played": away_played
     })
+    campionate_folosite.add(liga)
 
-# Sortează toate meciurile cronologic înainte de distribuire
+# Sortează meciurile filtrate cronologic înainte de generarea biletelor
 toate_meciurile_procesate = sorted(toate_meciurile_procesate, key=lambda x: x["ora"])
 
 bilete_safe = []
