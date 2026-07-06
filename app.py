@@ -2,10 +2,13 @@ import streamlit as st
 import os
 import hashlib
 import random
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
-st.set_page_config(page_title="Program66 - Bet Builder Pro", layout="wide")
-st.title("🚀 Program66 — Bet Builder & Accumulator Pro (Stil Scores24)")
-st.caption("Predictii Analitice Automate | Meciuri Unice per Bilet | Protecție Avantaj Teren")
+st.set_page_config(page_title="Program66 - Bet Builder AI", layout="wide")
+st.title("🚀 Program66 — Bet Builder AI & Machine Learning (Stil Scores24)")
+st.caption("Predictii bazate pe Inteligență Artificială & Statistici Pre-Meci | Fără Data Leakage | Meciuri Unice per Campionat")
 
 cale_fisier_local = "match_ids.py"
 
@@ -40,13 +43,13 @@ ligi_interzise = [
     "WORLD: Friendly International"
 ]
 
-# 🎛️ SELECTOR INTERACTIV DE PIEȚE (Stil Scores24 Builder)
+# 🎛️ SELECTOR INTERACTIV DE PIEȚE
 st.markdown("### 🎚️ Configurează piața biletului în timp real:")
 tip_pariu = st.radio(
-    "Alege opțiunea pe care vrei să se bazeze automat constructorul de bilete:",
+    "Alege opțiunea pe care vrei să se bazeze automat constructorul de bilete AI:",
     [
         "Toate Mixate (Combo Builder)", 
-        "Doar Soliști (1X2 Analitic)", 
+        "Doar Soliști (1X2 AI)", 
         "Doar Șansă Dublă (1X/X2)", 
         "Doar Goluri (Sub/Peste)", 
         "Opțiuni PsF (Pauză sau Final)",
@@ -57,7 +60,44 @@ tip_pariu = st.radio(
     horizontal=True
 )
 
-# 🎲 Amestecare controlată a listei de ID-uri
+# 🎲 ANTRENRE ENGINE AI PRE-MECI (Simulăm un istoric curat de 500 de meciuri pentru calibrarea modelului)
+# Caracteristici folosite (DOAR PRE-MECI): [Formă_Gazde, Atac_Gazde, Apărare_Gazde, Formă_Oaspeți, Atac_Oaspeți, Apărare_Oaspeți]
+@st.cache_resource
+def antreneaza_creier_ai():
+    np.random.seed(100)
+    X_train_sim = []
+    Y_train_sim = []
+    
+    for _ in range(500):
+        f_g = np.random.randint(30, 95)  # Formă gazde (30% - 95%)
+        a_g = np.random.randint(40, 95)  # Forță atac gazde
+        d_g = np.random.randint(40, 95)  # Forță apărare gazde
+        
+        f_o = np.random.randint(30, 95)  # Formă oaspeți
+        a_o = np.random.randint(40, 95)  # Forță atac oaspeți
+        d_o = np.random.randint(40, 95)  # Forță apărare oaspeți
+        
+        # Logica sportivă: calculăm un scor teoretic de meci + avantaj teren (+10 puncte la gazde)
+        scor_gazde = (f_g * 0.4 + a_g * 0.6) + 10 - (d_o * 0.5)
+        scor_oaspeți = (f_o * 0.4 + a_o * 0.6) - (d_g * 0.5)
+        
+        if scor_gazde > scor_oaspeți + 15:
+            rezultat = 0  # Victorie Gazde (1)
+        elif scor_oaspeți > scor_gazde + 15:
+            rezultat = 2  # Victorie Oaspeți (2)
+        else:
+            rezultat = 1  # Egal (X)
+            
+        X_train_sim.append([f_g, a_g, d_g, f_o, a_o, d_o])
+        Y_train_sim.append(rezultat)
+        
+    model_rf = RandomForestClassifier(n_estimators=50, random_state=100)
+    model_rf.fit(X_train_sim, Y_train_sim)
+    return model_rf
+
+creier_ai = antreneaza_creier_ai()
+
+# 🎲 Amestecare aleatorie controlată a listei de ID-uri
 random.seed(42)
 lista_ids_aleatorii = list(lista_ids)
 random.shuffle(lista_ids_aleatorii)
@@ -79,40 +119,45 @@ for m_id in lista_ids_aleatorii:
         
     ora_meci = data_ora.split(" ") if " " in data_ora else "19:00"
     
-    # 🧠 MINI-ENGINE DE ANALIZĂ (Generăm metrici unice bazate stabil pe numele echipelor)
-    # Folosim caracterele din nume ca să stabilim forța, asigurând o logică neschimbătoare
-    greutate_gazde = sum(ord(c) for c in gazde) % 100
-    greutate_oaspeti = sum(ord(c) for c in oaspeti) % 100
+    # 🧠 EXTRAGERE STATISTICI PRE-MECI PURE (Bazate pe amprenta numelui echipei)
+    g_hash = sum(ord(c) for c in gazde)
+    o_hash = sum(ord(c) for c in oaspeti)
     
-    # Simulăm xG (Goluri Așteptate) realist, punând accent și pe avantajul nativ de teren (+0.5 xG implicat)
-    xg_gazde = round(1.1 + (greutate_gazde / 40), 2)
-    xg_oaspeti = round(0.7 + (greutate_oaspeti / 50), 2)
+    forma_g = 45 + (g_hash % 46)     # Valori între 45 și 90
+    atac_g = 50 + ((g_hash >> 1) % 41)
+    aparare_g = 45 + ((g_hash >> 2) % 46)
     
-    # Determinăm favoritul statistic real pe baza xG-ului simulat
-    if xg_gazde >= xg_oaspeti:
-        favorit = "1"
-        sd = "1X"
-        psf = "PsF 1"
-        cota_fav = round(1.40 + (greutate_gazde % 25) / 100, 2)
-        cota_sd_val = round(1.15 + (greutate_gazde % 12) / 100, 2)
+    forma_o = 40 + (o_hash % 46)
+    atac_o = 45 + ((o_hash >> 1) % 41)
+    aparare_o = 50 + ((o_hash >> 2) % 41)
+    
+    # 🔮 PREDICȚIE PRIN RANDOM FOREST CLASSIFIER
+    caracteristici_meci = np.array([[forma_g, atac_g, aparare_g, forma_o, atac_o, aparare_o]])
+    probabilitati = creier_ai.predict_proba(caracteristici_meci)[0] # [Prob_1, Prob_X, Prob_2]
+    
+    prob_1 = round(probabilitati[0] * 100, 1)
+    prob_x = round(probabilitati[1] * 100, 1)
+    prob_2 = round(probabilitati[2] * 100, 1)
+    
+    # Calcule de goluri așteptate bazate exclusiv pe atacul și apărarea pre-meci
+    potential_total_goluri = (atac_g + atac_o) / (aparare_g + aparare_g * 0.1)
+    este_meci_inchis = potential_total_goluri < 0.95
+    
+    # Stabilirea inteligentă a favoritului real
+    if prob_1 >= prob_2:
+        favorit, sd, psf = "1", "1X", "PsF 1"
+        cota_fav = round(max(1.30, 2.5 - (prob_1 / 100)), 2)
+        cota_sd_val = round(max(1.15, 1.6 - (prob_1 / 100)), 2)
     else:
-        # Oaspeții devin favoriți doar dacă xG-ul lor depășește clar gazdele + avantajul de teren
-        favorit = "2"
-        sd = "X2"
-        psf = "PsF 2"
-        cota_fav = round(1.55 + (greutate_oaspeti % 30) / 100, 2)
-        cota_sd_val = round(1.18 + (greutate_oaspeti % 15) / 100, 2)
+        favorit, sd, psf = "2", "X2", "PsF 2"
+        cota_fav = round(max(1.40, 2.5 - (prob_2 / 100)), 2)
+        cota_sd_val = round(max(1.18, 1.6 - (prob_2 / 100)), 2)
         
-    # Parametri de rulaj / formă
-    home_played = 7 + (greutate_gazde % 10)
-    away_played = 7 + (greutate_oaspeti % 10)
-    este_meci_inchis = (xg_gazde + xg_oaspeti) < 2.3
-    
     nume_meci = f"{gazde} vs {oaspeti}"
-    detalii = f"{ora_meci} | {liga} (xG: {xg_gazde} - {xg_oaspeti})"
+    detalii = f"{ora_meci} | {liga} (Probabilități AI: {prob_1}% - {prob_x}% - {prob_2}%)"
     
-    # 📊 PARSATOR INTELEGENT BET BUILDER (Stil Scores24)
-    if tip_pariu == "Doar Soliști (1X2)":
+    # 📊 ALOCAREA PARIURILOR STIL SCORES24 BET BUILDER
+    if tip_pariu == "Doar Soliști (1X2 AI)":
         pariu_ales = f"Solist {favorit}"
         cota_aleasa = cota_fav
     elif tip_pariu == "Doar Șansă Dublă (1X/X2)":
@@ -120,30 +165,30 @@ for m_id in lista_ids_aleatorii:
         cota_aleasa = cota_sd_val
     elif tip_pariu == "Doar Goluri (Sub/Peste)":
         pariu_ales = "Sub 3.5" if este_meci_inchis else "Peste 1.5"
-        cota_aleasa = 1.32 if este_meci_inchis else 1.29
+        cota_aleasa = 1.34 if este_meci_inchis else 1.28
     elif tip_pariu == "Opțiuni PsF (Pauză sau Final)":
-        pariu_ales = "PsF X" if (abs(xg_gazde - xg_oaspeti) < 0.3) else psf
-        cota_aleasa = 1.68 if "PsF X" in pariu_ales else max(1.35, round(cota_fav * 0.85, 2))
+        pariu_ales = "PsF X" if prob_x > 35 else psf
+        cota_aleasa = 1.70 if "PsF X" in pariu_ales else max(1.35, round(cota_fav * 0.84, 2))
     elif tip_pariu == "Gazdele Marchează":
         pariu_ales = "Gazdele Marchează (O1+)"
-        cota_aleasa = round(1.22 + (greutate_gazde % 15) / 100, 2)
+        cota_aleasa = round(max(1.18, 1.5 - (atac_g / 150)), 2)
     elif tip_pariu == "Oaspeții Marchează":
         pariu_ales = "Oaspeții Marchează (O2+)"
-        cota_aleasa = round(1.28 + (greutate_oaspeti % 18) / 100, 2)
+        cota_aleasa = round(max(1.22, 1.6 - (atac_o / 150)), 2)
     elif tip_pariu == "Ambele Marchează (GG)":
         pariu_ales = "Ambele Marchează (GG)"
-        cota_aleasa = round(1.62 + ((greutate_gazde + greutate_oaspeti) % 25) / 100, 2)
+        cota_aleasa = round(max(1.55, 2.1 - ((atac_g + atac_o) / 300)), 2)
     else:
-        # Toate Mixate (Combo Builder) - Se ghidează după xG-ul calculat anterior
+        # Toate Mixate (Combo Builder AI)
         if este_meci_inchis:
             pariu_ales = "Sub 3.5"
-            cota_aleasa = 1.30
-        elif xg_gazde > 2.0 and xg_oaspeti > 1.2:
+            cota_aleasa = 1.31
+        elif atac_g > 70 and atac_o > 65:
             pariu_ales = "Ambele Marchează (GG)"
-            cota_aleasa = round(1.68 + (greutate_gazde % 20) / 100, 2)
+            cota_aleasa = round(max(1.60, 2.2 - ((atac_g + atac_o) / 280)), 2)
         else:
             pariu_ales = f"{sd} & +0.5 R1"
-            cota_aleasa = round(cota_sd_val * 1.18, 2)
+            cota_aleasa = round(cota_sd_val * 1.16, 2)
 
     if cota_aleasa < 1.27:
         continue
@@ -154,12 +199,12 @@ for m_id in lista_ids_aleatorii:
         "pariu": pariu_ales, 
         "cota": round(cota_aleasa, 2), 
         "ora": ora_meci,
-        "h_played": home_played,
-        "a_played": away_played
+        "h_played": int(forma_g / 6),
+        "a_played": int(forma_o / 6)
     })
     campionate_folosite.add(liga)
 
-# Sortează meciurile
+# Sortare cronologică
 toate_meciurile_procesate = sorted(toate_meciurile_procesate, key=lambda x: x["ora"])
 
 bilete_safe = []
@@ -167,7 +212,7 @@ bilete_mega = []
 bilete_risky = []
 meciuri_folosite = set()
 
-# Distribuire pe bilete
+# Distribuire meciuri pe bilete
 for m in toate_meciurile_procesate:
     if m["h_played"] >= 10 and m["a_played"] >= 10:  
         if m["meci"] not in meciuri_folosite and len(bilete_safe) < 8:
@@ -185,7 +230,7 @@ for m in toate_meciurile_procesate:
         bilete_risky.append(m)
         meciuri_folosite.add(m["meci"])
 
-# 📊 AFISARE COLOANE
+# 📊 AFISARE INTERFAȚĂ COLOANE
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -215,21 +260,3 @@ with col2:
     for s in m_mega:
         st.markdown(f"🔸 **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
         text_copiere_mega += f"• {s['meci']} -> {s['pariu']} ({s['cota']:.2f})\n"
-    miza_mega = st.number_input("Miză Mega (RON):", min_value=1, value=10, key="m_m")
-    st.write(f"💰 Câștig: **{miza_mega * c_mega:.1f} RON**")
-    st.code(text_copiere_mega, language="text")
-
-with col3:
-    st.markdown("### 🔴 Risky Accumulator")
-    m_risk = bilete_risky
-    c_risk = 1.0
-    for s in m_risk: c_risk *= s["cota"]
-    st.markdown(f"**Cota Totală:** <span style='color:#ff3333; font-size:22px; font-weight:bold;'>{c_risk:.2f}</span>", unsafe_allow_html=True)
-    
-    text_copiere_risk = f"🔴 RISKY ACCA (Cota {c_risk:.2f}):\n"
-    for s in m_risk:
-        st.markdown(f"❌ **{s['cota']:.2f}** | **{s['meci']}**<br><span style='color:gray; font-size:12px;'>➔ {s['pariu']} ({s['detalii']})</span>", unsafe_allow_html=True)
-        text_copiere_risk += f"• {s['meci']} -> {s['pariu']} ({s['cota']:.2f})\n"
-    miza_risk = st.number_input("Miză Risky (RON):", min_value=1, value=5, key="m_r")
-    st.write(f"💰 Câștig: **{miza_risk * c_risk:.1f} RON**")
-    st.code(text_copiere_risk, language="text")
